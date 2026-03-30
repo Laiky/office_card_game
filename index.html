@@ -89,7 +89,7 @@
     .boss-avatar.celebrate{animation:celebrate .6s ease}
     @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-10px) rotate(-5deg)}75%{transform:translateX(10px) rotate(5deg)}}
     @keyframes celebrate{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-15px) scale(1.1)}}
-    @media (max-width: 640px){.boss-avatar{width:136px;height:136px;margin:22px auto -14px}.stack-area{margin-top:-14px}.btn-row{margin-top:-8px;padding:8px 0 18px}}
+    @media (max-width: 640px){.boss-avatar{width:104px;height:104px;margin:18px auto -8px}.stack-area{margin-top:-6px}.btn-row{margin-top:-4px;padding:8px 0 18px}}
   </style>
 </head>
 <body>
@@ -178,6 +178,7 @@ const bossFrames = {
 let audioEnabled = true;
 let audioCtx = null;
 let bgMusic = null;
+let audioUnlocked = false;
 const audioClips = {};
 
 function getAudioClip(src, volume = 1) {
@@ -191,9 +192,20 @@ function getAudioClip(src, volume = 1) {
   return audioClips[src];
 }
 
+function duckBackgroundMusic(target = 0.08, duration = 500) {
+  if (!bgMusic || bgMusic.paused) return;
+  const baseVolume = 0.16;
+  bgMusic.volume = Math.min(bgMusic.volume, target);
+  setTimeout(() => {
+    if (bgMusic) bgMusic.volume = audioEnabled ? baseVolume : 0;
+  }, duration);
+}
+
 function playAudioFile(src, volume = 1) {
   if (!audioEnabled) return;
+  ensureAudioContext();
   const clip = getAudioClip(src, volume);
+  duckBackgroundMusic(0.06, 900);
   clip.pause();
   clip.currentTime = 0;
   clip.play().catch(() => {});
@@ -203,7 +215,7 @@ function ensureBackgroundMusic() {
   if (!bgMusic) {
     bgMusic = new Audio('office-ambience.mp3');
     bgMusic.loop = true;
-    bgMusic.volume = 0.3;
+    bgMusic.volume = 0.16;
     bgMusic.preload = 'auto';
     bgMusic.addEventListener('ended', () => {
       if (!audioEnabled) return;
@@ -223,6 +235,15 @@ function syncBackgroundMusic() {
   music.play().catch(() => {});
 }
 
+function unlockAudio() {
+  if (!audioEnabled) return;
+  ensureAudioContext();
+  ensureBackgroundMusic();
+  getAudioClip('win.mp3', 0.65).load();
+  getAudioClip('lose.mp3', 0.7).load();
+  audioUnlocked = true;
+}
+
 function ensureAudioContext() {
   if (!audioEnabled) return null;
   if (!audioCtx) {
@@ -235,9 +256,10 @@ function ensureAudioContext() {
   return audioCtx;
 }
 
-function playTone(freq, start, duration, type = 'sine', volume = 0.05) {
+function playTone(freq, start, duration, type = 'sine', volume = 0.09) {
   const ctx = ensureAudioContext();
   if (!ctx) return;
+  duckBackgroundMusic(0.05, 280);
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = type;
@@ -250,9 +272,10 @@ function playTone(freq, start, duration, type = 'sine', volume = 0.05) {
   osc.stop(start + duration + 0.02);
 }
 
-function playSweep(startFreq, endFreq, duration, type = 'triangle', volume = 0.045) {
+function playSweep(startFreq, endFreq, duration, type = 'triangle', volume = 0.08) {
   const ctx = ensureAudioContext();
   if (!ctx) return;
+  duckBackgroundMusic(0.05, 280);
   const t = ctx.currentTime;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -309,7 +332,7 @@ function toggleSound() {
   btn.textContent = audioEnabled ? 'Sound: ON' : 'Sound: OFF';
   if (!audioEnabled && audioCtx && audioCtx.state !== 'closed') audioCtx.suspend();
   syncBackgroundMusic();
-  if (audioEnabled) ensureAudioContext();
+  if (audioEnabled) unlockAudio();
 }
 
 function setBossFrame(frameIndex) {
@@ -795,12 +818,13 @@ function spawnEmoji(dir) {
 }
 
 document.addEventListener('keydown', e => {
-  ensureAudioContext();
+  if (!audioUnlocked) unlockAudio();
+  else ensureAudioContext();
   if (gameOver) return;
   if (e.key === 'ArrowRight') swipe('right');
   if (e.key === 'ArrowLeft') swipe('left');
 });
-document.addEventListener('pointerdown', ensureAudioContext, { once: true });
+document.addEventListener('pointerdown', unlockAudio, { once: true });
 
 // Initialize boss avatar from cropped frame files
 currentBossAnimation = 'waiting';

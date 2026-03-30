@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Toxic Office Survival</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--yes:#22c55e;--no:#ef4444;--bg:#0f0f13;--surface:#1a1a24;--card:#22222f;--text:#f0f0ff;--muted:#8888aa;--accent:#7c6aff;--danger:#ff3366;--warning:#ffa726}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;overflow:hidden;user-select:none;padding-top:env(safe-area-inset-top,0)}
+    .office-bg{position:fixed;inset:0;z-index:0;pointer-events:none;background:
+      radial-gradient(1200px 500px at 50% -120px, #44577d55, transparent 70%),
+      linear-gradient(180deg,#1a263d 0%,#141b2f 44%,#121722 100%)}
+    .office-bg::before{content:'';position:absolute;inset:0;background:
+      repeating-linear-gradient(90deg, transparent 0 26px, #00000016 26px 28px),
+      repeating-linear-gradient(0deg, transparent 0 26px, #00000012 26px 28px);
+      opacity:.22}
+    .office-bg::after{content:'';position:absolute;left:0;right:0;bottom:0;height:36%;background:
+      linear-gradient(180deg,transparent 0%,#00000020 30%,#0b101a 100%),
+      repeating-linear-gradient(90deg,#0e1422 0 90px,#172236 90px 180px,#111a2b 180px 260px);
+      clip-path:polygon(0 35%,5% 33%,8% 40%,13% 37%,18% 45%,26% 36%,31% 46%,38% 38%,44% 42%,51% 35%,58% 44%,65% 37%,72% 43%,80% 34%,86% 40%,93% 36%,100% 42%,100% 100%,0 100%);
+      opacity:.9}
+    header{width:100%;padding:20px 32px 8px;z-index:10;flex-shrink:0;position:relative}
+    .logo{font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;margin-bottom:8px}
+    .level-badge{text-align:center;margin-bottom:14px}
+    .level-title{font-size:.9rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px}
+    .toxicity-wrap{width:min(420px,90vw);margin:0 auto}
+    .toxicity-label{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-bottom:6px}
+    .toxicity-label .warning{color:var(--warning);font-weight:600}
+    .toxicity-bar{height:8px;background:#ffffff10;border-radius:8px;overflow:hidden;border:1px solid #ffffff08;position:relative}
+    .toxicity-fill{height:100%;background:linear-gradient(90deg,#22c55e,#ffa726,#ff3366);border-radius:8px;transition:width .5s cubic-bezier(0.4,0,0.2,1);position:relative}
+    .toxicity-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);animation:shimmer 2s infinite}
+    @keyframes shimmer{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+    .btn-row{display:flex;gap:24px;align-items:center;justify-content:center;padding:10px 0 24px;z-index:10;flex-shrink:0;position:relative;margin-top:-14px}
+    .stack-area{flex:1;display:flex;align-items:center;justify-content:center;position:relative;width:100%;z-index:5;margin-top:-22px}
+    .card-wrap{position:absolute;width:min(360px,88vw);height:min(480px,64vh)}
+    .card-wrap.ghost-2{transform:translateY(18px) scale(.92);z-index:1}
+    .card-wrap.ghost-1{transform:translateY(9px) scale(.96);z-index:2}
+    .card-wrap.active{z-index:3;cursor:grab}
+    .card-wrap.active:active{cursor:grabbing}
+    .card{width:100%;height:100%;background:var(--card);border-radius:24px;border:1px solid #ffffff08;box-shadow:0 20px 60px #00000060;display:flex;flex-direction:column;overflow:hidden}
+    .card-header{padding:28px 28px 20px;display:flex;align-items:center;justify-content:space-between}
+    .card-category{background:linear-gradient(135deg,#7c6aff33,#60a5fa33);border:1px solid #7c6aff44;color:#a78bfa;font-size:.7rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border-radius:8px;padding:4px 10px}
+    .card-body{flex:1;display:flex;align-items:center;justify-content:center;padding:20px 28px}
+    .card-question{font-size:clamp(1.05rem,3.5vw,1.35rem);font-weight:700;line-height:1.55;text-align:center;color:var(--text)}
+    .card-footer{padding:0 28px 28px;display:flex;justify-content:center}
+    .card-hint{font-size:.73rem;color:var(--muted);display:flex;align-items:center;gap:4px}
+    .hint-key{background:#ffffff10;border:1px solid #ffffff18;border-radius:5px;padding:1px 6px;font-size:.68rem;font-family:monospace}
+    .swipe-label{position:absolute;top:36px;font-size:1.6rem;font-weight:900;letter-spacing:2px;border-radius:10px;padding:6px 18px;border:3px solid;opacity:0;pointer-events:none}
+    .swipe-label.yes{right:24px;color:var(--yes);border-color:var(--yes);transform:rotate(15deg)}
+    .swipe-label.no{left:24px;color:var(--no);border-color:var(--no);transform:rotate(-15deg)}
+    .btn{border:none;border-radius:50px;cursor:pointer;font-weight:700;transition:transform .15s,box-shadow .15s;outline:none;padding:14px 28px;font-size:.95rem}
+    .btn:active{transform:scale(.93)}
+    .btn-no{background:#ef444420;border:2px solid #ef444440;color:var(--no)}
+    .btn-no:hover{background:#ef444430;box-shadow:0 0 20px #ef444330}
+    .btn-yes{background:#22c55e20;border:2px solid #22c55e40;color:var(--yes)}
+    .btn-yes:hover{background:#22c55e30;box-shadow:0 0 20px #22c55e30}
+    .end-screen{display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;position:absolute;inset:0;text-align:center;padding:40px 24px;z-index:10;background:rgba(0,0,0,.85);backdrop-filter:blur(8px)}
+    .end-content{background:var(--card);border-radius:24px;padding:40px 36px;text-align:center;border:2px solid var(--accent);box-shadow:0 30px 80px rgba(0,0,0,.6);max-width:420px;width:min(92vw,420px);animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)}
+    .end-icon{font-size:4rem}
+    .end-title{font-size:2rem;font-weight:800}
+    .end-sub{color:var(--muted);font-size:1rem;max-width:340px;line-height:1.5}
+    .result-box{background:var(--surface);border-radius:16px;padding:20px 32px;border:1px solid #ffffff10;margin:10px 0}
+    .result-box .label{font-size:.8rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+    .result-box .value{font-size:1.8rem;font-weight:900;color:var(--accent)}
+    .btn-restart{background:linear-gradient(135deg,#7c6aff,#60a5fa);color:#fff;border:none;border-radius:50px;padding:14px 36px;font-size:1rem;font-weight:700;cursor:pointer;transition:transform .15s,box-shadow .15s;margin-top:10px}
+    .btn-restart:hover{transform:scale(1.04);box-shadow:0 8px 30px #7c6aff50}
+    .btn-restart:active{transform:scale(.96)}
+    .fly-emoji{position:fixed;font-size:2.2rem;pointer-events:none;animation:flyUp .75s ease-out forwards;z-index:999}
+    @keyframes flyUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-90px) scale(1.6)}}
+    .card-wrap.fly-out-right{transition:transform .42s cubic-bezier(.4,0,.2,1),opacity .42s !important;transform:translateX(130%) rotate(28deg) !important;opacity:0}
+    .card-wrap.fly-out-left{transition:transform .42s cubic-bezier(.4,0,.2,1),opacity .42s !important;transform:translateX(-130%) rotate(-28deg) !important;opacity:0}
+    .ghost-transition{transition:transform .38s cubic-bezier(.4,0,.2,1) !important}
+    .promotion-popup{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(8px)}
+    .promotion-content{background:var(--card);border-radius:24px;padding:40px 48px;text-align:center;border:2px solid var(--accent);box-shadow:0 30px 80px rgba(0,0,0,.6);max-width:420px;animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)}
+    @keyframes popIn{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
+    .promotion-icon{font-size:4rem;margin-bottom:16px}
+    .promotion-title{font-size:1.8rem;font-weight:800;margin-bottom:8px;background:linear-gradient(135deg,#ffd700,#ffa500);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .promotion-level{font-size:2.2rem;font-weight:900;color:var(--accent);margin-bottom:16px;text-transform:uppercase;letter-spacing:2px}
+    .promotion-msg{color:var(--muted);font-size:.95rem;line-height:1.6;margin-bottom:24px}
+    .btn-continue{background:linear-gradient(135deg,#7c6aff,#60a5fa);color:#fff;border:none;border-radius:50px;padding:14px 32px;font-size:1rem;font-weight:700;cursor:pointer;transition:transform .15s}
+    .btn-continue:hover{transform:scale(1.05)}
+    .btn-continue:active{transform:scale(.95)}
+    .sound-toggle{display:block;position:relative;z-index:20;margin:0 auto 10px;border:1px solid #ffffff2a;background:#1f2433cc;color:#e6eaff;border-radius:999px;padding:8px 12px;font-size:.85rem;font-weight:700;cursor:pointer;backdrop-filter:blur(6px)}
+    .sound-toggle:hover{background:#2a3146dd}
+    .boss-avatar{position:relative;width:176px;height:176px;margin:28px auto -20px;z-index:10;overflow:hidden;image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges;filter:drop-shadow(0 8px 20px rgba(0,0,0,.35))}
+    .boss-avatar img{width:100%;height:100%;object-fit:contain;opacity:1;transition:opacity .16s ease;image-rendering:pixelated;image-rendering:crisp-edges}
+    .boss-avatar img.boss-swap{opacity:.35}
+    .boss-avatar.shake{animation:shake .5s ease}
+    .boss-avatar.celebrate{animation:celebrate .6s ease}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-10px) rotate(-5deg)}75%{transform:translateX(10px) rotate(5deg)}}
+    @keyframes celebrate{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-15px) scale(1.1)}}
+    @media (max-width: 640px){header{padding:20px 16px 6px}.logo{font-size:1.08rem;padding:0}.level-badge{margin-bottom:10px}.toxicity-wrap{width:min(420px,94vw)}.boss-avatar{width:92px;height:92px;margin:14px auto -6px}.stack-area{margin-top:-4px}.card-wrap{width:min(310px,82vw);height:min(420px,52vh)}.card-header{padding:22px 22px 16px}.card-body{padding:16px 22px}.card-footer{padding:0 22px 22px}.card-question{font-size:clamp(.95rem,3.8vw,1.1rem);line-height:1.45}.btn-row{margin-top:-2px;padding:8px 0 16px}.sound-toggle{margin:0 auto 8px;padding:6px 9px;font-size:.7rem}.end-content{padding:32px 24px}}
+  </style>
+</head>
+<body>
+<div class="office-bg"></div>
+<header>
+  <div class="logo">☠️ Toxic Office Survival</div>
+  <button class="sound-toggle" id="sound-toggle" onclick="toggleSound()">Sound: ON</button>
+  <div class="level-badge">
+    <div class="level-title" id="level-title">TRAINEE</div>
+  </div>
+  <div class="toxicity-wrap">
+    <div class="toxicity-label">
+      <span>Toxicity Level</span>
+      <span class="warning" id="toxicity-pct">50%</span>
+    </div>
+    <div class="toxicity-bar">
+      <div class="toxicity-fill" id="toxicity-fill" style="width:50%"></div>
+    </div>
+  </div>
+  <div class="boss-avatar" id="boss-avatar">
+    <img id="boss-img" src="data:image/png;base64," alt="Boss">
+  </div>
+</header>
+<div class="stack-area" id="stack-area"></div>
+<div class="btn-row" id="btn-row">
+  <button class="btn btn-no" onclick="swipe('left')">✗ Decline</button>
+  <button class="btn btn-yes" onclick="swipe('right')">✓ Accept</button>
+</div>
+<div class="end-screen" id="end-screen">
+  <div class="end-content">
+    <div class="end-icon" id="end-icon">💀</div>
+    <div class="end-title" id="end-title">Game Over!</div>
+    <div class="end-sub" id="end-msg"></div>
+    <div class="result-box">
+      <div class="label">Final Position</div>
+      <div class="value" id="final-level">TRAINEE</div>
+    </div>
+    <button class="btn-restart" onclick="restart()">↺ Try Again</button>
+  </div>
+</div>
+<div class="promotion-popup" id="promotion-popup">
+  <div class="promotion-content">
+    <div class="promotion-icon">🎉</div>
+    <div class="promotion-title">Promoted!</div>
+    <div class="promotion-level" id="promo-level">JUNIOR</div>
+    <div class="promotion-msg" id="promo-msg">You survived the trainee level! The stakes are higher now...</div>
+    <button class="btn-continue" onclick="continueGame()">Continue →</button>
+  </div>
+</div>
+<script>
+const levels = [
+  { name: 'TRAINEE', cards: 3 },
+  { name: 'JUNIOR', cards: 3 },
+  { name: 'SENIOR', cards: 4 },
+  { name: 'MANAGER', cards: 4 },
+  { name: 'C-LEVEL', cards: 4 }
+];
+
+// Boss sprite animations - will be loaded from external images
+const bossAnimations = {
+  waiting: [0, 1, 2, 3, 4, 5, 6, 7, 8], // Frame indices for waiting
+  angry: [0, 1, 2, 3, 4, 5, 6, 7, 8],   // Frame indices for angry
+  happy: [0, 1, 2, 3, 4, 5, 6, 7, 8]    // Frame indices for happy
+};
+
+let currentBossAnimation = 'waiting';
+let currentBossFrame = 0;
+let bossAnimationTimer = null;
+let bossSpriteSwapTimer = null;
+let bossMotionResetTimer = null;
+const bossFrames = {
+  waiting: [
+    'boss_frames/waiting_0.png','boss_frames/waiting_1.png','boss_frames/waiting_2.png',
+    'boss_frames/waiting_3.png','boss_frames/waiting_4.png','boss_frames/waiting_5.png',
+    'boss_frames/waiting_6.png','boss_frames/waiting_7.png','boss_frames/waiting_8.png'
+  ],
+  angry: [
+    'boss_frames/angry_0.png','boss_frames/angry_1.png','boss_frames/angry_2.png',
+    'boss_frames/angry_3.png','boss_frames/angry_4.png','boss_frames/angry_5.png',
+    'boss_frames/angry_6.png','boss_frames/angry_7.png','boss_frames/angry_8.png'
+  ],
+  happy: [
+    'boss_frames/happy_0.png','boss_frames/happy_1.png','boss_frames/happy_2.png',
+    'boss_frames/happy_3.png','boss_frames/happy_4.png','boss_frames/happy_5.png',
+    'boss_frames/happy_6.png','boss_frames/happy_7.png','boss_frames/happy_8.png'
+  ]
+};
+let audioEnabled = true;
+let audioCtx = null;
+let bgMusic = null;
+let audioUnlocked = false;
+const audioClips = {};
+
+function getAudioClip(src, volume = 1) {
+  if (!audioClips[src]) {
+    const clip = new Audio(src);
+    clip.preload = 'auto';
+    clip.volume = volume;
+    audioClips[src] = clip;
+  }
+  audioClips[src].volume = volume;
+  return audioClips[src];
+}
+
+function duckBackgroundMusic(target = 0.08, duration = 500) {
+  if (!bgMusic || bgMusic.paused) return;
+  const baseVolume = 0.16;
+  bgMusic.volume = Math.min(bgMusic.volume, target);
+  setTimeout(() => {
+    if (bgMusic) bgMusic.volume = audioEnabled ? baseVolume : 0;
+  }, duration);
+}
+
+function playAudioFile(src, volume = 1) {
+  if (!audioEnabled) return;
+  ensureAudioContext();
+  const clip = getAudioClip(src, volume);
+  duckBackgroundMusic(0.06, 900);
+  clip.pause();
+  clip.currentTime = 0;
+  clip.play().catch(() => {});
+}
+
+function ensureBackgroundMusic() {
+  if (!bgMusic) {
+    bgMusic = new Audio('office-ambience.mp3');
+    bgMusic.loop = true;
+    bgMusic.volume = 0.16;
+    bgMusic.preload = 'auto';
+    bgMusic.addEventListener('ended', () => {
+      if (!audioEnabled) return;
+      bgMusic.currentTime = 0;
+      bgMusic.play().catch(() => {});
+    });
+  }
+  return bgMusic;
+}
+
+function syncBackgroundMusic() {
+  const music = ensureBackgroundMusic();
+  if (!audioEnabled) {
+    music.pause();
+    return;
+  }
+  music.play().catch(() => {});
+}
+
+function unlockAudio() {
+  if (!audioEnabled) return;
+  ensureAudioContext();
+  ensureBackgroundMusic();
+  getAudioClip('win.mp3', 0.65).load();
+  getAudioClip('lose.mp3', 0.7).load();
+  audioUnlocked = true;
+}
+
+function ensureAudioContext() {
+  if (!audioEnabled) return null;
+  if (!audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    audioCtx = new Ctx();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  syncBackgroundMusic();
+  return audioCtx;
+}
+
+function playTone(freq, start, duration, type = 'sine', volume = 0.09) {
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  duckBackgroundMusic(0.05, 280);
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, start);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(start);
+  osc.stop(start + duration + 0.02);
+}
+
+function playSweep(startFreq, endFreq, duration, type = 'triangle', volume = 0.08) {
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  duckBackgroundMusic(0.05, 280);
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(startFreq, t);
+  osc.frequency.exponentialRampToValueAtTime(endFreq, t + duration);
+  gain.gain.setValueAtTime(0.0001, t);
+  gain.gain.exponentialRampToValueAtTime(volume, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + duration + 0.02);
+}
+
+function playSound(eventName) {
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  if (eventName === 'swipe-right') {
+    playSweep(420, 760, 0.09, 'triangle', 0.05);
+  } else if (eventName === 'swipe-left') {
+    playSweep(720, 260, 0.1, 'sawtooth', 0.045);
+  } else if (eventName === 'toxic-choice') {
+    playTone(190, t, 0.12, 'square', 0.05);
+    playTone(130, t + 0.09, 0.14, 'sawtooth', 0.04);
+  } else if (eventName === 'healthy-choice') {
+    playTone(493.88, t, 0.08, 'triangle', 0.045);
+    playTone(659.25, t + 0.08, 0.11, 'triangle', 0.04);
+  } else if (eventName === 'boss-happy') {
+    playTone(523.25, t, 0.08, 'triangle', 0.05);
+    playTone(659.25, t + 0.09, 0.1, 'triangle', 0.045);
+  } else if (eventName === 'boss-angry') {
+    playTone(180, t, 0.14, 'square', 0.04);
+    playTone(140, t + 0.08, 0.16, 'square', 0.035);
+  } else if (eventName === 'promotion') {
+    playTone(523.25, t, 0.09, 'triangle', 0.05);
+    playTone(659.25, t + 0.1, 0.09, 'triangle', 0.05);
+    playTone(783.99, t + 0.2, 0.14, 'triangle', 0.05);
+  } else if (eventName === 'win') {
+    playTone(659.25, t, 0.1, 'sine', 0.05);
+    playTone(783.99, t + 0.12, 0.1, 'sine', 0.05);
+    playTone(987.77, t + 0.24, 0.18, 'sine', 0.05);
+  } else if (eventName === 'lose') {
+    playTone(220, t, 0.16, 'sawtooth', 0.04);
+    playTone(174.61, t + 0.12, 0.2, 'sawtooth', 0.035);
+  } else if (eventName === 'click') {
+    playTone(480, t, 0.05, 'triangle', 0.03);
+  }
+}
+
+function toggleSound() {
+  audioEnabled = !audioEnabled;
+  const btn = document.getElementById('sound-toggle');
+  btn.textContent = audioEnabled ? 'Sound: ON' : 'Sound: OFF';
+  if (!audioEnabled && audioCtx && audioCtx.state !== 'closed') audioCtx.suspend();
+  syncBackgroundMusic();
+  if (audioEnabled) unlockAudio();
+}
+
+function setBossFrame(frameIndex) {
+  const bossImg = document.getElementById('boss-img');
+  const frames = bossFrames[currentBossAnimation] || [];
+  if (!frames.length) return;
+  bossImg.src = frames[frameIndex % frames.length];
+}
+
+function randomBossFrame() {
+  const frames = bossFrames[currentBossAnimation] || [];
+  return Math.floor(Math.random() * frames.length);
+}
+
+const allCards = [
+  // TRAINEE
+  {
+    cat:"Office Politics",
+    q:"Your manager asks you to work unpaid overtime to 'show commitment'. Do you accept?",
+    acceptEffect: 21,   // Was 18, now 18 * 1.15 = 20.7 ≈ 21
+    declineEffect: -14  // Was -12, now -12 * 1.15 = -13.8 ≈ -14x
+  },
+  {
+    cat:"Team Dynamics",
+    q:"A senior colleague takes credit for your work in a meeting. Confront them?",
+    acceptEffect: -12,  // Was -10, now -10 * 1.15 = -11.5 ≈ -12
+    declineEffect: 17   // Was 15, now 15 * 1.15 = 17.25 ≈ 17
+  },
+  {
+    cat:"Workload",
+    q:"You're assigned someone else's unfinished project with an impossible deadline. Take it on?",
+    acceptEffect: 18,   // Was 16, now 16 * 1.15 = 18.4 ≈ 18
+    declineEffect: -9   // Was -8, now -8 * 1.15 = -9.2 ≈ -9
+  },
+  
+  // JUNIOR
+  {
+    cat:"Management",
+    q:"Your boss asks you to lie to a client about a missed deadline. Go along with it?",
+    acceptEffect: 25,   // Was 22, now 22 * 1.15 = 25.3 ≈ 25
+    declineEffect: -16  // Was -14, now -14 * 1.15 = -16.1 ≈ -16
+  },
+  {
+    cat:"Culture",
+    q:"The team goes for drinks every night and you're expected to join. Participate?",
+    acceptEffect: 14,   // Was 12, now 12 * 1.15 = 13.8 ≈ 14
+    declineEffect: -7   // Was -6, now -6 * 1.15 = -6.9 ≈ -7
+  },
+  {
+    cat:"Ethics",
+    q:"You discover your department is inflating performance metrics. Report it?",
+    acceptEffect: -17,  // Was -15, now -15 * 1.15 = -17.25 ≈ -17
+    declineEffect: 23   // Was 20, now 20 * 1.15 = 23
+  },
+  
+  // SENIOR
+  {
+    cat:"Leadership",
+    q:"You're asked to fire someone without cause to meet budget cuts. Do it?",
+    acceptEffect: 29,   // Was 25, now 25 * 1.15 = 28.75 ≈ 29
+    declineEffect: -12  // Was -10, now -10 * 1.15 = -11.5 ≈ -12
+  },
+  {
+    cat:"Strategy",
+    q:"Upper management wants you to push a product you know is flawed. Comply?",
+    acceptEffect: 23,   // Was 20, now 20 * 1.15 = 23
+    declineEffect: -14  // Was -12, now -12 * 1.15 = -13.8 ≈ -14
+  },
+  {
+    cat:"Politics",
+    q:"Your peer is being set up to fail. Warn them and risk your own position?",
+    acceptEffect: -16,  // Was -14, now -14 * 1.15 = -16.1 ≈ -16
+    declineEffect: 21   // Was 18, now 18 * 1.15 = 20.7 ≈ 21
+  },
+  {
+    cat:"Pressure",
+    q:"Work through your scheduled vacation to finish a project that was poorly planned?",
+    acceptEffect: 22,   // Was 19, now 19 * 1.15 = 21.85 ≈ 22
+    declineEffect: -13  // Was -11, now -11 * 1.15 = -12.65 ≈ -13
+  },
+  
+  // MANAGER
+  {
+    cat:"Executive",
+    q:"You can secure a promotion by sabotaging a colleague's project. Do it?",
+    acceptEffect: 32,   // Was 28, now 28 * 1.15 = 32.2 ≈ 32
+    declineEffect: -18  // Was -16, now -16 * 1.15 = -18.4 ≈ -18
+  },
+  {
+    cat:"Culture",
+    q:"HR asks you to overlook harassment claims from a high performer. Agree?",
+    acceptEffect: 35,   // Was 30, now 30 * 1.15 = 34.5 ≈ 35
+    declineEffect: -21  // Was -18, now -18 * 1.15 = -20.7 ≈ -21
+  },
+  {
+    cat:"Finance",
+    q:"Accept a bonus knowing your team won't get raises this year?",
+    acceptEffect: 28,   // Was 24, now 24 * 1.15 = 27.6 ≈ 28
+    declineEffect: -15  // Was -13, now -13 * 1.15 = -14.95 ≈ -15
+  },
+  {
+    cat:"Decisions",
+    q:"Implement a surveillance system to monitor employee productivity?",
+    acceptEffect: 24,   // Was 21, now 21 * 1.15 = 24.15 ≈ 24
+    declineEffect: -10  // Was -9, now -9 * 1.15 = -10.35 ≈ -10
+  },
+  
+  // C-LEVEL
+  {
+    cat:"Board Room",
+    q:"Approve mass layoffs to boost quarterly earnings before your stock options vest?",
+    acceptEffect: 37,   // Was 32, now 32 * 1.15 = 36.8 ≈ 37
+    declineEffect: -23  // Was -20, now -20 * 1.15 = -23
+  },
+  {
+    cat:"Strategy",
+    q:"Greenlight an acquisition you know will fail but looks good on paper?",
+    acceptEffect: 30,   // Was 26, now 26 * 1.15 = 29.9 ≈ 30
+    declineEffect: -17  // Was -15, now -15 * 1.15 = -17.25 ≈ -17
+  },
+  {
+    cat:"Public Image",
+    q:"Issue a disingenuous apology for company misconduct to avoid real change?",
+    acceptEffect: 32,   // Was 28, now 28 * 1.15 = 32.2 ≈ 32
+    declineEffect: -20  // Was -17, now -17 * 1.15 = -19.55 ≈ -20
+  },
+  {
+    cat:"Ethics",
+    q:"Move operations offshore to cut costs, knowing working conditions are poor?",
+    acceptEffect: 33,   // Was 29, now 29 * 1.15 = 33.35 ≈ 33
+    declineEffect: -22  // Was -19, now -19 * 1.15 = -21.85 ≈ -22
+  }
+];
+
+let currentLevel = 0;
+let cardIndexInLevel = 0;
+let toxicity = 50;
+let gameOver = false;
+let awaitingPromotion = false;
+
+function playBossAnimation(animationType, duration = 2000) {
+  const boss = document.getElementById('boss-avatar');
+  const bossImg = document.getElementById('boss-img');
+  
+  // Clear pending timers so rapid swipes don't leave stale transitions behind
+  if (bossAnimationTimer) clearTimeout(bossAnimationTimer);
+  if (bossSpriteSwapTimer) clearTimeout(bossSpriteSwapTimer);
+  if (bossMotionResetTimer) clearTimeout(bossMotionResetTimer);
+  
+  // Keep boss pose static (no sprite-sheet playback)
+  boss.classList.remove('shake', 'celebrate');
+  currentBossAnimation = animationType;
+  
+  const nextFrame = randomBossFrame();
+
+  // Smoothly swap frame images for a cleaner transition
+  if (bossImg.src !== (bossFrames[animationType] || [])[nextFrame]) {
+    bossImg.classList.add('boss-swap');
+    bossSpriteSwapTimer = setTimeout(() => {
+      bossImg.classList.remove('boss-swap');
+      currentBossFrame = nextFrame;
+      setBossFrame(currentBossFrame);
+      bossSpriteSwapTimer = null;
+    }, 90);
+  } else {
+    currentBossFrame = nextFrame;
+    setBossFrame(currentBossFrame);
+  }
+  
+  // Return to waiting state after duration
+  if (animationType !== 'waiting') {
+    bossAnimationTimer = setTimeout(() => {
+      bossImg.classList.add('boss-swap');
+      bossSpriteSwapTimer = setTimeout(() => {
+        bossImg.classList.remove('boss-swap');
+        currentBossAnimation = 'waiting';
+        currentBossFrame = randomBossFrame();
+        setBossFrame(currentBossFrame);
+        bossSpriteSwapTimer = null;
+      }, 90);
+    }, duration);
+  }
+}
+
+function updateBossReaction(toxicityChange) {
+  if (toxicityChange < -10) {
+    playSound('boss-happy');
+    playBossAnimation('happy', 1600);
+  } else if (toxicityChange > 10) {
+    playSound('boss-angry');
+    playBossAnimation('angry', 1600);
+  } else {
+    playBossAnimation('waiting', 0);
+  }
+}
+
+function showPromotion() {
+  playAudioFile('win.mp3', 0.55);
+  awaitingPromotion = true;
+  const popup = document.getElementById('promotion-popup');
+  const levelName = levels[currentLevel].name;
+  
+  const messages = {
+    'JUNIOR': 'You survived the trainee level! The stakes are higher now...',
+    'SENIOR': 'Impressive! You\'ve made it to senior level. Leadership is watching.',
+    'MANAGER': 'You\'re in management now. Every choice has bigger consequences.',
+    'C-LEVEL': 'Welcome to the C-suite. This is where careers are made or broken.'
+  };
+  
+  document.getElementById('promo-level').textContent = levelName;
+  document.getElementById('promo-msg').textContent = messages[levelName] || 'Congratulations on your promotion!';
+  popup.style.display = 'flex';
+}
+
+function continueGame() {
+  playSound('click');
+  document.getElementById('promotion-popup').style.display = 'none';
+  awaitingPromotion = false;
+  buildStack();
+}
+
+function getCurrentCard() {
+  let offset = 0;
+  for (let i = 0; i < currentLevel; i++) {
+    offset += levels[i].cards;
+  }
+  return allCards[offset + cardIndexInLevel];
+}
+
+function buildStack() {
+  const area = document.getElementById('stack-area');
+  area.innerHTML = '';
+  if (gameOver) return;
+  
+  const cardsInLevel = levels[currentLevel].cards;
+  const remaining = cardsInLevel - cardIndexInLevel;
+  const vis = Math.min(3, remaining);
+  
+  for (let i = vis - 1; i >= 0; i--) {
+    const cardData = getCurrentCardAtOffset(i);
+    if (!cardData) continue;
+    const w = document.createElement('div');
+    w.className = 'card-wrap ' + (i === 0 ? 'active' : i === 1 ? 'ghost-1' : 'ghost-2');
+    w.innerHTML = cardHTML(cardData);
+    area.appendChild(w);
+  }
+  
+  updateUI();
+  setupDrag();
+}
+
+function getCurrentCardAtOffset(offset) {
+  if (cardIndexInLevel + offset >= levels[currentLevel].cards) return null;
+  let cardIndex = 0;
+  for (let i = 0; i < currentLevel; i++) {
+    cardIndex += levels[i].cards;
+  }
+  cardIndex += cardIndexInLevel + offset;
+  return allCards[cardIndex];
+}
+
+function cardHTML(c) {
+  return `<div class="card">
+    <div class="card-header">
+      <span class="card-category">${c.cat}</span>
+    </div>
+    <div class="card-body"><div class="card-question">${c.q}</div></div>
+    <div class="card-footer">
+      <span class="card-hint"><span class="hint-key">←</span>&nbsp;Decline &nbsp;·&nbsp; Accept&nbsp;<span class="hint-key">→</span></span>
+    </div>
+    <div class="swipe-label yes">ACCEPT ✓</div>
+    <div class="swipe-label no">✗ DECLINE</div>
+  </div>`;
+}
+
+function updateUI() {
+  document.getElementById('level-title').textContent = levels[currentLevel].name;
+  const pct = Math.round(toxicity);
+  document.getElementById('toxicity-pct').textContent = pct + '%';
+  document.getElementById('toxicity-fill').style.width = pct + '%';
+}
+
+let drag = false, sx = 0, sy = 0, cx = 0, cy = 0, active = null;
+
+function setupDrag() {
+  active = document.querySelector('.card-wrap.active');
+  if (!active) return;
+  active.addEventListener('mousedown', dStart);
+  active.addEventListener('touchstart', dStart, {passive: true});
+}
+
+function dStart(e) {
+  if (drag || gameOver) return;
+  drag = true;
+  const p = e.touches ? e.touches[0] : e;
+  sx = p.clientX; sy = p.clientY; cx = 0; cy = 0;
+  document.addEventListener('mousemove', dMove);
+  document.addEventListener('touchmove', dMove, {passive: true});
+  document.addEventListener('mouseup', dEnd);
+  document.addEventListener('touchend', dEnd);
+}
+
+function dMove(e) {
+  if (!drag || !active) return;
+  const p = e.touches ? e.touches[0] : e;
+  cx = p.clientX - sx; cy = p.clientY - sy;
+  active.style.transition = 'none';
+  active.style.transform = `translateX(${cx}px) translateY(${cy*.2}px) rotate(${cx*.13}deg)`;
+  const yl = active.querySelector('.swipe-label.yes'), nl = active.querySelector('.swipe-label.no'), t = 35;
+  if (cx > t) { yl.style.opacity = Math.min((cx-t)/70, 1); nl.style.opacity = 0; }
+  else if (cx < -t) { nl.style.opacity = Math.min((-cx-t)/70, 1); yl.style.opacity = 0; }
+  else { yl.style.opacity = 0; nl.style.opacity = 0; }
+}
+
+function dEnd() {
+  if (!drag) return;
+  drag = false;
+  document.removeEventListener('mousemove', dMove);
+  document.removeEventListener('touchmove', dMove);
+  document.removeEventListener('mouseup', dEnd);
+  document.removeEventListener('touchend', dEnd);
+  if (!active) return;
+  if (cx > 100) swipe('right');
+  else if (cx < -100) swipe('left');
+  else {
+    active.style.transition = 'transform .45s cubic-bezier(.175,.885,.32,1.275)';
+    active.style.transform = '';
+    const yl = active.querySelector('.swipe-label.yes'), nl = active.querySelector('.swipe-label.no');
+    if (yl) yl.style.opacity = 0; if (nl) nl.style.opacity = 0;
+    setTimeout(() => { if (active) active.style.transition = ''; }, 450);
+  }
+}
+
+function swipe(dir) {
+  if (gameOver || awaitingPromotion) return;
+  
+  // Get the current card's toxicity effect
+  const card = getCurrentCard();
+  if (!card) return; // Safety check
+  
+  const baseEffect = dir === 'right' ? card.acceptEffect : card.declineEffect;
+  
+  // Level-based difficulty multiplier (gets harder as you progress)
+  const levelMultiplier = 1 + (currentLevel * 0.25); // 1x, 1.25x, 1.5x, 1.75x, 2x
+  
+  // Add 15% randomness to keep it unpredictable
+  const randomVariation = (Math.random() - 0.5) * 30; // -15% to +15%
+  const totalChange = (baseEffect * levelMultiplier) + randomVariation;
+  playSound(totalChange > 0 ? 'toxic-choice' : 'healthy-choice');
+  
+  // Update boss reaction based on the change
+  updateBossReaction(totalChange);
+  
+  toxicity += totalChange;
+  toxicity = Math.max(0, Math.min(100, toxicity));
+  
+  // Check for game over conditions
+  if (toxicity <= 5 || toxicity >= 95) {
+    gameOver = true;
+    setTimeout(() => showEnd(toxicity <= 5 ? 'passive' : 'toxic'), 600);
+  }
+  
+  spawnEmoji(dir);
+  
+  const w = document.querySelector('.card-wrap.active');
+  if (w) {
+    w.style.transition = '';
+    w.classList.add(dir === 'right' ? 'fly-out-right' : 'fly-out-left');
+    w.style.pointerEvents = 'none';
+    setTimeout(() => { try { w.remove(); } catch(e) {} }, 450);
+  }
+  
+  const g1 = document.querySelector('.card-wrap.ghost-1'), g2 = document.querySelector('.card-wrap.ghost-2');
+  if (g1) { g1.classList.add('ghost-transition'); g1.classList.replace('ghost-1', 'active'); setTimeout(() => g1.classList.remove('ghost-transition'), 380); }
+  if (g2) { g2.classList.add('ghost-transition'); g2.classList.replace('ghost-2', 'ghost-1'); setTimeout(() => g2.classList.remove('ghost-transition'), 380); }
+  
+  cardIndexInLevel++;
+  
+  // Check if level complete
+  if (!gameOver && cardIndexInLevel >= levels[currentLevel].cards) {
+    currentLevel++;
+    cardIndexInLevel = 0;
+    
+    if (currentLevel >= levels.length) {
+      // Won the game!
+      gameOver = true;
+      setTimeout(() => showEnd('win'), 600);
+      return;
+    }
+    
+    // Show promotion popup
+    setTimeout(() => {
+      showPromotion();
+    }, 500);
+    return;
+  }
+  
+  updateUI();
+  
+  if (gameOver) return;
+  
+  // Add new ghost card if we're staying in the same level
+  const remaining = levels[currentLevel].cards - cardIndexInLevel;
+  if (remaining >= 3) {
+    setTimeout(() => {
+      const area = document.getElementById('stack-area');
+      if (!area) return;
+      const cardData = getCurrentCardAtOffset(2);
+      if (!cardData) return;
+      const nw = document.createElement('div');
+      nw.className = 'card-wrap ghost-2';
+      nw.innerHTML = cardHTML(cardData);
+      area.insertBefore(nw, area.firstChild);
+    }, 60);
+  }
+  
+  setTimeout(setupDrag, 60);
+}
+
+function showEnd(reason) {
+  document.getElementById('stack-area').style.display = 'none';
+  document.getElementById('btn-row').style.display = 'none';
+  document.getElementById('final-level').textContent = levels[currentLevel].name;
+  
+  let icon, title, msg;
+  if (reason === 'win') {
+    playSound('win');
+    icon = '👑';
+    title = 'You Made It!';
+    msg = 'Congratulations! You navigated the toxic workplace and reached C-Level without losing yourself or becoming the villain. A rare feat!';
+  } else if (reason === 'passive') {
+    playAudioFile('lose.mp3', 0.6);
+    icon = '😔';
+    title = 'Too Passive!';
+    msg = 'You were too accommodating and got walked all over. Sometimes you need to push back to survive.';
+  } else {
+    playAudioFile('lose.mp3', 0.6);
+    icon = '💀';
+    title = 'Too Toxic!';
+    msg = 'You became the very thing you were trying to survive. The toxicity consumed you.';
+  }
+  
+  document.getElementById('end-icon').textContent = icon;
+  document.getElementById('end-title').textContent = title;
+  document.getElementById('end-msg').textContent = msg;
+  document.getElementById('end-screen').style.display = 'flex';
+}
+
+function restart() {
+  playSound('click');
+  currentLevel = 0;
+  cardIndexInLevel = 0;
+  toxicity = 50;
+  gameOver = false;
+  awaitingPromotion = false;
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('promotion-popup').style.display = 'none';
+  document.getElementById('stack-area').style.display = 'flex';
+  document.getElementById('btn-row').style.display = 'flex';
+  currentBossAnimation = 'waiting';
+  if (bossAnimationTimer) clearTimeout(bossAnimationTimer);
+  if (bossSpriteSwapTimer) clearTimeout(bossSpriteSwapTimer);
+  if (bossMotionResetTimer) clearTimeout(bossMotionResetTimer);
+  const boss = document.getElementById('boss-avatar');
+  const bossImg = document.getElementById('boss-img');
+  boss.classList.remove('shake', 'celebrate');
+  bossImg.classList.remove('boss-swap');
+  currentBossAnimation = 'waiting';
+  currentBossFrame = randomBossFrame();
+  setBossFrame(currentBossFrame);
+  buildStack();
+}
+
+function spawnEmoji(dir) {
+  const emojis = ['💼', '📊', '☕', '📧', '💰', '🎯'];
+  const el = document.createElement('div');
+  el.className = 'fly-emoji';
+  el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+  el.style.left = dir === 'right' ? '62%' : '22%';
+  el.style.top = '48%';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 800);
+}
+
+document.addEventListener('keydown', e => {
+  if (!audioUnlocked) unlockAudio();
+  else ensureAudioContext();
+  if (gameOver) return;
+  if (e.key === 'ArrowRight') swipe('right');
+  if (e.key === 'ArrowLeft') swipe('left');
+});
+document.addEventListener('pointerdown', unlockAudio, { once: true });
+
+// Initialize boss avatar from cropped frame files
+currentBossAnimation = 'waiting';
+currentBossFrame = randomBossFrame();
+setBossFrame(currentBossFrame);
+buildStack();
+</script>
+</body>
+</html>
